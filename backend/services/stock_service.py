@@ -9,13 +9,31 @@ from typing import Optional
 _cache: dict = {}
 CACHE_TTL_SECONDS = 300  # 5 minutes
 
+# Map of exchange codes to friendly names
+EXCHANGE_MAP = {
+    "NMS": "NASDAQ",
+    "NGM": "NASDAQ",
+    "NCM": "NASDAQ",
+    "NYQ": "NYSE",
+    "NYS": "NYSE",
+    "PCX": "NYSE ARCA",
+    "BTS": "BATS",
+    "ASE": "NYSE American",
+    "LSE": "London",
+    "TYO": "Tokyo",
+}
+
+
+def _friendly_exchange(code: str) -> str:
+    """Convert exchange code to a human-friendly name."""
+    return EXCHANGE_MAP.get(code, code)
+
 
 def get_stock_info(symbol: str) -> dict:
     """
     Fetch stock information for a given symbol.
-    Returns dict with current_price, previous_close, change_percent,
-    change_amount, currency, name, exchange, day_high, day_low.
-    Uses a simple in-memory cache to avoid repeated API calls.
+    Uses fast_info for price data (faster, more reliable) and
+    .info for name/sector metadata.
     """
     symbol = symbol.upper().strip()
 
@@ -26,14 +44,21 @@ def get_stock_info(symbol: str) -> dict:
 
     try:
         ticker = yf.Ticker(symbol)
-        info = ticker.info
 
-        current_price = info.get("currentPrice") or info.get(
-            "regularMarketPrice", 0
+        # fast_info is lightweight and reliable for price data
+        fi = ticker.fast_info
+
+        current_price = fi.get("lastPrice", 0) or 0
+        previous_close = (
+            fi.get("previousClose", 0)
+            or fi.get("regularMarketPreviousClose", 0)
+            or 0
         )
-        previous_close = info.get("previousClose", 0) or info.get(
-            "regularMarketPreviousClose", 0
-        )
+        exchange_raw = fi.get("exchange", "N/A") or "N/A"
+        currency = fi.get("currency", "USD") or "USD"
+        day_high = fi.get("dayHigh", 0) or 0
+        day_low = fi.get("dayLow", 0) or 0
+        market_cap = fi.get("marketCap", 0) or 0
 
         if previous_close and current_price:
             change_amount = current_price - previous_close
@@ -42,19 +67,28 @@ def get_stock_info(symbol: str) -> dict:
             change_amount = 0
             change_percent = 0
 
+        # Get name from .info (has more metadata)
+        try:
+            info = ticker.info
+            name = info.get("shortName") or info.get("longName", symbol)
+            sector = info.get("sector", "N/A")
+        except Exception:
+            name = symbol
+            sector = "N/A"
+
         data = {
             "symbol": symbol,
-            "name": info.get("shortName") or info.get("longName", symbol),
-            "exchange": info.get("exchange", "N/A"),
-            "currency": info.get("currency", "USD"),
-            "current_price": round(current_price, 2) if current_price else 0,
-            "previous_close": round(previous_close, 2) if previous_close else 0,
+            "name": name,
+            "exchange": _friendly_exchange(exchange_raw),
+            "currency": currency,
+            "current_price": round(current_price, 2),
+            "previous_close": round(previous_close, 2),
             "change_amount": round(change_amount, 2),
             "change_percent": round(change_percent, 2),
-            "day_high": round(info.get("dayHigh", 0) or 0, 2),
-            "day_low": round(info.get("dayLow", 0) or 0, 2),
-            "market_cap": info.get("marketCap", 0),
-            "sector": info.get("sector", "N/A"),
+            "day_high": round(day_high, 2),
+            "day_low": round(day_low, 2),
+            "market_cap": market_cap,
+            "sector": sector,
             "success": True,
         }
 
