@@ -3,16 +3,9 @@
 // ========================================
 
 document.addEventListener('DOMContentLoaded', function () {
-    // --- Add Asset Modal ---
     setupAddAssetForm();
+    setupAddPurchaseForm();
 
-    // --- Add Transaction Form ---
-    setupAddTransactionForm();
-
-    // --- Transaction type toggle ---
-    setupTransactionTypeToggle();
-
-    // --- Set default date for purchase date input ---
     const purchaseDateInput = document.getElementById('purchaseDate');
     if (purchaseDateInput && !purchaseDateInput.value) {
         purchaseDateInput.value = new Date().toISOString().split('T')[0];
@@ -37,7 +30,6 @@ function closeAddAssetModal() {
     const modal = document.getElementById('addAssetModal');
     if (modal) {
         modal.style.display = 'none';
-        // Reset form
         const form = document.getElementById('addAssetForm');
         if (form) form.reset();
         hideElement('symbolLookupResult');
@@ -45,7 +37,6 @@ function closeAddAssetModal() {
     }
 }
 
-// Close modal on Escape key
 document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') {
         closeAddAssetModal();
@@ -83,7 +74,6 @@ async function lookupSymbol() {
                 '<strong>' + data.name + '</strong> &mdash; ' +
                 data.exchange + ' &mdash; $' + data.current_price.toFixed(2) + ' ' + data.currency;
 
-            // Auto-fill name and exchange
             if (nameInput) nameInput.value = data.name;
             if (exchangeInput) exchangeInput.value = data.exchange;
         } else {
@@ -141,7 +131,6 @@ function setupAddAssetForm() {
             const data = await response.json();
 
             if (data.success) {
-                // Reload page to show new asset
                 window.location.reload();
             } else {
                 showFormError('addAssetError', data.error || 'Failed to add asset');
@@ -154,110 +143,58 @@ function setupAddAssetForm() {
 
 
 // ========================================
-// Transaction Type Toggle
+// Add Purchase Form
 // ========================================
 
-function setupTransactionTypeToggle() {
-    const typeSelect = document.getElementById('transactionType');
-    if (!typeSelect) return;
-
-    typeSelect.addEventListener('change', function () {
-        toggleTransactionFields(this.value);
-    });
-
-    // Initialize on load
-    toggleTransactionFields(typeSelect.value);
-}
-
-function toggleTransactionFields(txnType) {
-    const purchaseFields = document.querySelectorAll('.purchase-field');
-    const dividendFields = document.querySelectorAll('.dividend-field');
-
-    if (txnType === 'dividend') {
-        purchaseFields.forEach(function (el) { el.style.display = 'none'; });
-        dividendFields.forEach(function (el) { el.style.display = ''; });
-    } else {
-        purchaseFields.forEach(function (el) { el.style.display = ''; });
-        dividendFields.forEach(function (el) { el.style.display = 'none'; });
-    }
-}
-
-
-// ========================================
-// Add Transaction Form
-// ========================================
-
-function setupAddTransactionForm() {
-    const form = document.getElementById('addTransactionForm');
+function setupAddPurchaseForm() {
+    const form = document.getElementById('addPurchaseForm');
     if (!form) return;
 
     const assetId = form.dataset.assetId;
 
     form.addEventListener('submit', async function (e) {
         e.preventDefault();
-        hideElement('addTransactionError');
+        hideElement('addPurchaseError');
 
-        const transactionType = document.getElementById('transactionType').value;
         const purchaseDate = document.getElementById('purchaseDate').value;
-        const notes = document.getElementById('purchaseNotes').value.trim();
+        const pricePerUnit = parseFloat(document.getElementById('purchasePrice').value);
+        const quantity = parseInt(document.getElementById('purchaseQuantity').value, 10);
+        const notes = (document.getElementById('purchaseNotes') && document.getElementById('purchaseNotes').value) ? document.getElementById('purchaseNotes').value.trim() : '';
 
         if (!purchaseDate) {
-            showFormError('addTransactionError', 'Date is required');
+            showFormError('addPurchaseError', 'Date is required');
+            return;
+        }
+        if (!pricePerUnit || pricePerUnit <= 0) {
+            showFormError('addPurchaseError', 'Price must be a positive number');
+            return;
+        }
+        if (!quantity || quantity <= 0) {
+            showFormError('addPurchaseError', 'Quantity must be a positive integer');
             return;
         }
 
-        var body = {
-            transaction_type: transactionType,
-            purchase_date: purchaseDate,
-            notes: notes
-        };
-
-        if (transactionType === 'purchase') {
-            var pricePerUnit = parseFloat(document.getElementById('purchasePrice').value);
-            var quantity = parseFloat(document.getElementById('purchaseQuantity').value);
-            var fees = parseFloat(document.getElementById('purchaseFees').value) || 0;
-
-            if (!pricePerUnit || pricePerUnit <= 0) {
-                showFormError('addTransactionError', 'Price must be a positive number');
-                return;
-            }
-            if (!quantity || quantity <= 0) {
-                showFormError('addTransactionError', 'Quantity must be a positive number');
-                return;
-            }
-
-            body.price_per_unit = pricePerUnit;
-            body.quantity = quantity;
-            body.fees = fees;
-        } else {
-            // Dividend
-            var creditAmount = parseFloat(document.getElementById('dividendAmount').value);
-
-            if (!creditAmount || creditAmount <= 0) {
-                showFormError('addTransactionError', 'Dividend amount must be a positive number');
-                return;
-            }
-
-            body.credit = creditAmount;
-        }
-
         try {
-            const response = await fetch('/api/assets/' + assetId + '/transactions', {
+            const response = await fetch('/api/assets/' + assetId + '/purchases', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body)
+                body: JSON.stringify({
+                    purchase_date: purchaseDate,
+                    price_per_unit: pricePerUnit,
+                    quantity: quantity,
+                    notes: notes
+                })
             });
 
             const data = await response.json();
 
             if (data.success) {
-                // Reload page to show new transaction
                 window.location.reload();
             } else {
-                showFormError('addTransactionError', data.error || 'Failed to add transaction');
+                showFormError('addPurchaseError', data.error || 'Failed to add purchase');
             }
         } catch (err) {
-            showFormError('addTransactionError', 'Error: ' + err.message);
+            showFormError('addPurchaseError', 'Error: ' + err.message);
         }
     });
 }
@@ -268,7 +205,7 @@ function setupAddTransactionForm() {
 // ========================================
 
 async function deleteAsset(assetId, symbol) {
-    if (!confirm('Are you sure you want to delete ' + symbol + ' and all its transactions? This cannot be undone.')) {
+    if (!confirm('Are you sure you want to delete ' + symbol + ' and all its purchases? This cannot be undone.')) {
         return;
     }
 
@@ -289,13 +226,13 @@ async function deleteAsset(assetId, symbol) {
     }
 }
 
-async function deleteTransaction(assetId, transactionId) {
-    if (!confirm('Are you sure you want to delete this transaction? This cannot be undone.')) {
+async function deletePurchase(assetId, purchaseId) {
+    if (!confirm('Are you sure you want to delete this purchase? This cannot be undone.')) {
         return;
     }
 
     try {
-        const response = await fetch('/api/assets/' + assetId + '/transactions/' + transactionId, {
+        const response = await fetch('/api/assets/' + assetId + '/purchases/' + purchaseId, {
             method: 'DELETE'
         });
 
@@ -304,10 +241,10 @@ async function deleteTransaction(assetId, transactionId) {
         if (data.success) {
             window.location.reload();
         } else {
-            alert('Failed to delete transaction: ' + (data.error || 'Unknown error'));
+            alert('Failed to delete purchase: ' + (data.error || 'Unknown error'));
         }
     } catch (err) {
-        alert('Error deleting transaction: ' + err.message);
+        alert('Error deleting purchase: ' + err.message);
     }
 }
 

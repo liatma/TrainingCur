@@ -20,10 +20,6 @@
             <span class="summary-value">${{ "%.2f"|format(portfolio_value) }}</span>
         </div>
         <div class="summary-card">
-            <span class="summary-label">Dividends</span>
-            <span class="summary-value gain">${{ "%.2f"|format(portfolio_dividends) }}</span>
-        </div>
-        <div class="summary-card">
             <span class="summary-label">Total Profit/Loss</span>
             <span class="summary-value {{ 'gain' if portfolio_is_gain else 'loss' }}">
                 {{ "+" if portfolio_is_gain else "" }}${{ "%.2f"|format(portfolio_profit) }}
@@ -31,54 +27,137 @@
         </div>
     </div>
 
-    <!-- Asset Cards Grid -->
+    <!-- Assets Table -->
     {% if assets %}
-    <div class="assets-grid">
-        {% for asset in assets %}
-        <a href="/dashboard/asset/{{ asset._id }}" class="asset-card-link">
-            <div class="asset-card">
-                <div class="asset-card-header">
-                    <div class="asset-symbol">{{ asset.symbol }}</div>
-                    <div class="asset-type-badge">{{ asset.asset_type }}</div>
-                </div>
-                <div class="asset-name">{{ asset.name }}</div>
-                <div class="asset-exchange">{{ asset.exchange }}</div>
-
-                <div class="asset-card-price">
-                    <span class="asset-current-price">${{ "%.2f"|format(asset.current_price) }}</span>
-                    <span class="asset-change {{ 'gain' if asset.change_percent >= 0 else 'loss' }}">
-                        {{ "+" if asset.change_percent >= 0 else "" }}{{ "%.2f"|format(asset.change_percent) }}%
-                    </span>
-                </div>
-
-                <div class="asset-card-details">
-                    <div class="detail-row">
-                        <span>Units</span>
-                        <span>{{ "%.2f"|format(asset.total_units) }}</span>
-                    </div>
-                    <div class="detail-row">
-                        <span>Invested</span>
-                        <span>${{ "%.2f"|format(asset.total_paid) }}</span>
-                    </div>
-                    <div class="detail-row">
-                        <span>Value</span>
-                        <span>${{ "%.2f"|format(asset.total_value) }}</span>
-                    </div>
-                    {% if asset.total_dividends > 0 %}
-                    <div class="detail-row">
-                        <span>Dividends</span>
-                        <span class="gain">${{ "%.2f"|format(asset.total_dividends) }}</span>
-                    </div>
+    <div class="dashboard2-table-wrapper">
+        <table class="dashboard2-table" id="assetsTable">
+            <colgroup>
+                <col style="width:175px">  {# Name #}
+                <col style="width:62px">   {# Exch #}
+                <col style="width:57px">   {# Type #}
+                <col style="width:55px">   {# Units #}
+                <col style="width:82px">   {# Invested #}
+                <col style="width:92px">   {# Price #}
+                <col style="width:82px">   {# Value #}
+                <col style="width:88px">   {# P/L #}
+                <col style="width:82px">   {# P/Mo #}
+                <col style="width:82px">   {# P/Yr #}
+                <col style="width:105px">  {# Analyst #}
+            </colgroup>
+            <thead>
+                <tr>
+                    <th data-col="0" data-type="string">
+                        Name <span class="sort-indicator">▲</span>
+                    </th>
+                    <th data-col="1" data-type="string" class="center">
+                        Exch <span class="sort-indicator">↕</span>
+                    </th>
+                    <th data-col="2" data-type="string" class="center">
+                        Type <span class="sort-indicator">↕</span>
+                    </th>
+                    <th data-col="3" data-type="number" class="num">
+                        Units <span class="sort-indicator">↕</span>
+                    </th>
+                    <th data-col="4" data-type="number" class="num">
+                        Invested <span class="sort-indicator">↕</span>
+                    </th>
+                    <th data-col="5" data-type="number" class="num">
+                        Price <span class="sort-indicator">↕</span>
+                    </th>
+                    <th data-col="6" data-type="number" class="num">
+                        Value <span class="sort-indicator">↕</span>
+                    </th>
+                    <th data-col="7" data-type="number" class="num">
+                        P/L <span class="sort-indicator">↕</span>
+                    </th>
+                    <th data-col="8" data-type="number" class="num">
+                        P/Mo <span class="sort-indicator">↕</span>
+                    </th>
+                    <th data-col="9" data-type="number" class="num">
+                        P/Yr <span class="sort-indicator">↕</span>
+                    </th>
+                    <th data-col="10" data-type="number" class="center">
+                        Analyst <span class="sort-indicator">↕</span>
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for asset in assets %}
+                <tr onclick="window.location='/dashboard/asset/{{ asset.id }}'">
+                    {# col 0: Name — data-val used for sort #}
+                    <td data-val="{{ asset.symbol }}">
+                        <div class="d2-name-cell">
+                            <span class="d2-symbol">{{ asset.symbol }}</span>
+                            <span class="d2-fullname" title="{{ asset.name }}">{{ asset.name }}</span>
+                        </div>
+                    </td>
+                    {# col 1: Exchange #}
+                    <td class="center" data-val="{{ asset.exchange }}">
+                        <span class="d2-badge">{{ asset.exchange }}</span>
+                    </td>
+                    {# col 2: Type #}
+                    <td class="center" data-val="{{ asset.asset_type }}">
+                        <span class="d2-badge">{{ asset.asset_type }}</span>
+                    </td>
+                    {# col 3: Units #}
+                    <td class="num" data-val="{{ asset.total_units }}">
+                        {{ "%.2f"|format(asset.total_units) if asset.total_units != asset.total_units|int else asset.total_units|int }}
+                    </td>
+                    {# col 4: Invested #}
+                    <td class="num" data-val="{{ asset.total_paid }}">
+                        ${{ "%.2f"|format(asset.total_paid) }}
+                    </td>
+                    {# col 5: Price + daily change #}
+                    <td class="num" data-val="{{ asset.current_price }}">
+                        <div class="d2-price-cell">
+                            <span class="d2-price-main">${{ "%.2f"|format(asset.current_price) }}</span>
+                            <span class="d2-change-pct {{ 'd2-gain' if asset.change_percent >= 0 else 'd2-loss' }}">
+                                {{ "+" if asset.change_percent >= 0 else "" }}{{ "%.2f"|format(asset.change_percent) }}%
+                            </span>
+                        </div>
+                    </td>
+                    {# col 6: Value #}
+                    <td class="num" data-val="{{ asset.total_value }}">
+                        ${{ "%.2f"|format(asset.total_value) }}
+                    </td>
+                    {# col 7: P/L #}
+                    <td class="num {{ 'd2-gain' if asset.is_gain else 'd2-loss' }}" data-val="{{ asset.total_profit }}">
+                        {{ "+" if asset.is_gain else "" }}${{ "%.2f"|format(asset.total_profit) }}
+                    </td>
+                    {# col 8: Profit per month #}
+                    {% if asset.profit_per_month is not none %}
+                    <td class="num {{ 'd2-gain' if asset.profit_per_month >= 0 else 'd2-loss' }}" data-val="{{ asset.profit_per_month }}">
+                        {{ "+" if asset.profit_per_month >= 0 else "" }}${{ "%.2f"|format(asset.profit_per_month) }}
+                    </td>
+                    {% else %}
+                    <td class="num analyst-none" data-val="-999999">—</td>
                     {% endif %}
-                </div>
-
-                <div class="asset-card-profit {{ 'gain-bg' if asset.is_gain else 'loss-bg' }}">
-                    <span>{{ "Gain" if asset.is_gain else "Loss" }}</span>
-                    <span>{{ "+" if asset.is_gain else "" }}${{ "%.2f"|format(asset.total_profit) }}</span>
-                </div>
-            </div>
-        </a>
-        {% endfor %}
+                    {# col 9: Profit per year #}
+                    {% if asset.profit_per_year is not none %}
+                    <td class="num {{ 'd2-gain' if asset.profit_per_year >= 0 else 'd2-loss' }}" data-val="{{ asset.profit_per_year }}">
+                        {{ "+" if asset.profit_per_year >= 0 else "" }}${{ "%.2f"|format(asset.profit_per_year) }}
+                    </td>
+                    {% else %}
+                    <td class="num analyst-none" data-val="-999999">—</td>
+                    {% endif %}
+                    {# col 10: Analyst rank #}
+                    <td class="center" data-val="{{ asset.analyst_score }}">
+                        {% if asset.recommendation_key == 'strong_buy' %}
+                            <span class="analyst-badge analyst-strong-buy">Strong Buy</span>
+                        {% elif asset.recommendation_key == 'buy' %}
+                            <span class="analyst-badge analyst-buy">Buy</span>
+                        {% elif asset.recommendation_key == 'hold' %}
+                            <span class="analyst-badge analyst-hold">Hold</span>
+                        {% elif asset.recommendation_key in ('underperform', 'sell') %}
+                            <span class="analyst-badge analyst-sell">Sell</span>
+                        {% else %}
+                            <span class="analyst-none">—</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
     {% else %}
     <div class="empty-state">
@@ -132,4 +211,81 @@
         </form>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    const table = document.getElementById('assetsTable');
+    if (!table) return;
+
+    const tbody = table.querySelector('tbody');
+    const headers = table.querySelectorAll('thead th');
+
+    // Track current sort state
+    let currentCol = 0;   // Name column
+    let currentDir = 'asc';
+
+    // Apply initial sort indicator
+    headers[0].classList.add('sorted-asc');
+    headers[0].querySelector('.sort-indicator').textContent = '▲';
+
+    function getVal(row, colIdx) {
+        const cell = row.cells[colIdx];
+        const raw = cell.dataset.val;
+        return raw !== undefined ? raw : cell.textContent.trim();
+    }
+
+    function sortTable(colIdx, type, dir) {
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        rows.sort(function (a, b) {
+            let av = getVal(a, colIdx);
+            let bv = getVal(b, colIdx);
+            if (type === 'number') {
+                av = parseFloat(av);
+                bv = parseFloat(bv);
+                if (isNaN(av)) av = dir === 'asc' ? Infinity : -Infinity;
+                if (isNaN(bv)) bv = dir === 'asc' ? Infinity : -Infinity;
+                return dir === 'asc' ? av - bv : bv - av;
+            }
+            av = av.toLowerCase();
+            bv = bv.toLowerCase();
+            if (av < bv) return dir === 'asc' ? -1 : 1;
+            if (av > bv) return dir === 'asc' ? 1 : -1;
+            return 0;
+        });
+        rows.forEach(function (r) { tbody.appendChild(r); });
+    }
+
+    function updateHeaders(activeIdx, dir) {
+        headers.forEach(function (th, i) {
+            th.classList.remove('sorted-asc', 'sorted-desc');
+            th.querySelector('.sort-indicator').textContent = '↕';
+            if (i === activeIdx) {
+                th.classList.add(dir === 'asc' ? 'sorted-asc' : 'sorted-desc');
+                th.querySelector('.sort-indicator').textContent = dir === 'asc' ? '▲' : '▼';
+            }
+        });
+    }
+
+    // Initial sort: Name ascending
+    sortTable(0, 'string', 'asc');
+
+    // Click handler
+    headers.forEach(function (th) {
+        th.addEventListener('click', function () {
+            const colIdx = parseInt(th.dataset.col, 10);
+            const type = th.dataset.type || 'string';
+            let dir = 'asc';
+            if (currentCol === colIdx) {
+                dir = currentDir === 'asc' ? 'desc' : 'asc';
+            }
+            currentCol = colIdx;
+            currentDir = dir;
+            sortTable(colIdx, type, dir);
+            updateHeaders(colIdx, dir);
+        });
+    });
+})();
+</script>
 {% endblock %}

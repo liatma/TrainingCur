@@ -4,7 +4,6 @@
 
 {% block content %}
 <div class="asset-detail-container">
-    <!-- Back Link -->
     <a href="/dashboard" class="back-link">&larr; Back to Dashboard</a>
 
     <!-- Asset Header -->
@@ -21,22 +20,17 @@
         </div>
         <div class="asset-header-price">
             <div class="current-price-large">${{ "%.2f"|format(current_price) }}</div>
-            <div class="price-change {{ 'gain' if stock_info.change_amount >= 0 else 'loss' }}">
-                {{ "+" if stock_info.change_amount >= 0 else "" }}${{ "%.2f"|format(stock_info.change_amount) }}
-                ({{ "+" if stock_info.change_percent >= 0 else "" }}{{ "%.2f"|format(stock_info.change_percent) }}%)
+            <div class="price-change {{ 'gain' if stock_info.change_percent >= 0 else 'loss' }}">
+                {{ "+" if stock_info.change_percent >= 0 else "" }}{{ "%.2f"|format(stock_info.change_percent) }}% today
             </div>
         </div>
-        <button class="btn btn-danger btn-small" onclick="deleteAsset('{{ asset._id }}', '{{ asset.symbol }}')">
+        <button class="btn btn-danger btn-small" onclick="deleteAsset('{{ asset.id }}', '{{ asset.symbol }}')">
             Delete Asset
         </button>
     </div>
 
-    <!-- Summary Cards -->
+    <!-- Summary -->
     <div class="asset-summary">
-        <div class="summary-card">
-            <span class="summary-label">Total Units</span>
-            <span class="summary-value">{{ "%.2f"|format(total_units) }}</span>
-        </div>
         <div class="summary-card">
             <span class="summary-label">Total Paid</span>
             <span class="summary-value">${{ "%.2f"|format(total_paid) }}</span>
@@ -46,18 +40,30 @@
             <span class="summary-value">${{ "%.2f"|format(total_value) }}</span>
         </div>
         <div class="summary-card">
-            <span class="summary-label">Total Fees</span>
-            <span class="summary-value">${{ "%.2f"|format(total_fees) }}</span>
-        </div>
-        <div class="summary-card">
-            <span class="summary-label">Dividends</span>
-            <span class="summary-value gain">${{ "%.2f"|format(total_dividends) }}</span>
-        </div>
-        <div class="summary-card">
-            <span class="summary-label">Profit / Loss</span>
+            <span class="summary-label">Total Profit/Loss</span>
             <span class="summary-value {{ 'gain' if is_gain else 'loss' }}">
                 {{ "+" if is_gain else "" }}${{ "%.2f"|format(total_profit) }}
             </span>
+        </div>
+        <div class="summary-card">
+            <span class="summary-label">Profit / Month</span>
+            {% if profit_per_month is not none %}
+            <span class="summary-value {{ 'gain' if profit_per_month >= 0 else 'loss' }}">
+                {{ "+" if profit_per_month >= 0 else "" }}${{ "%.2f"|format(profit_per_month) }}
+            </span>
+            {% else %}
+            <span class="summary-value" style="color:#94a3b8;">—</span>
+            {% endif %}
+        </div>
+        <div class="summary-card">
+            <span class="summary-label">Profit / Year</span>
+            {% if profit_per_year is not none %}
+            <span class="summary-value {{ 'gain' if profit_per_year >= 0 else 'loss' }}">
+                {{ "+" if profit_per_year >= 0 else "" }}${{ "%.2f"|format(profit_per_year) }}
+            </span>
+            {% else %}
+            <span class="summary-value" style="color:#94a3b8;">—</span>
+            {% endif %}
         </div>
         <div class="summary-card">
             <span class="summary-label">Status</span>
@@ -67,41 +73,66 @@
         </div>
     </div>
 
-    <!-- Add Transaction Section -->
+    <!-- Analyst Info -->
+    {% if recommendation_key or target_mean_price %}
+    <div class="analyst-info-row">
+        <div class="summary-card">
+            <span class="summary-label">Analyst Recommendation</span>
+            <span class="summary-value">
+                {% if recommendation_key == 'strong_buy' %}
+                    <span class="analyst-badge analyst-strong-buy">Strong Buy</span>
+                {% elif recommendation_key == 'buy' %}
+                    <span class="analyst-badge analyst-buy">Buy</span>
+                {% elif recommendation_key == 'hold' %}
+                    <span class="analyst-badge analyst-hold">Hold</span>
+                {% elif recommendation_key in ('underperform', 'sell') %}
+                    <span class="analyst-badge analyst-sell">Sell</span>
+                {% else %}
+                    <span style="color:#94a3b8;">—</span>
+                {% endif %}
+            </span>
+        </div>
+        <div class="summary-card">
+            <span class="summary-label">Analyst Target Price</span>
+            <span class="summary-value">
+                {% if target_mean_price %}
+                    ${{ "%.2f"|format(target_mean_price) }}
+                {% else %}
+                    <span style="color:#94a3b8;">—</span>
+                {% endif %}
+            </span>
+        </div>
+        <div class="summary-card">
+            <span class="summary-label">Number of Analysts</span>
+            <span class="summary-value">
+                {% if number_of_analyst_opinions %}
+                    {{ number_of_analyst_opinions }}
+                {% else %}
+                    <span style="color:#94a3b8;">—</span>
+                {% endif %}
+            </span>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Add Purchase Form -->
     <div class="add-purchase-section">
-        <h2>Add Transaction</h2>
-        <form id="addTransactionForm" class="purchase-form" data-asset-id="{{ asset._id }}">
+        <h2>Add Purchase</h2>
+        <form id="addPurchaseForm" class="purchase-form" data-asset-id="{{ asset.id }}">
             <div class="form-row">
-                <div class="form-group">
-                    <label for="transactionType">Type</label>
-                    <select id="transactionType" name="transaction_type">
-                        <option value="purchase" selected>Purchase</option>
-                        <option value="dividend">Dividend</option>
-                    </select>
-                </div>
                 <div class="form-group">
                     <label for="purchaseDate">Date</label>
                     <input type="date" id="purchaseDate" name="purchase_date" required>
                 </div>
-                <div class="form-group purchase-field">
+                <div class="form-group">
                     <label for="purchasePrice">Price per Unit ($)</label>
                     <input type="number" id="purchasePrice" name="price_per_unit"
-                           step="0.01" min="0.01" placeholder="0.00">
+                           step="0.01" min="0.01" placeholder="0.00" required>
                 </div>
-                <div class="form-group purchase-field">
+                <div class="form-group">
                     <label for="purchaseQuantity">Quantity</label>
                     <input type="number" id="purchaseQuantity" name="quantity"
-                           step="0.01" min="0.01" placeholder="0">
-                </div>
-                <div class="form-group purchase-field">
-                    <label for="purchaseFees">Fees ($)</label>
-                    <input type="number" id="purchaseFees" name="fees"
-                           step="0.01" min="0" placeholder="0.00" value="0">
-                </div>
-                <div class="form-group dividend-field" style="display: none;">
-                    <label for="dividendAmount">Amount ($)</label>
-                    <input type="number" id="dividendAmount" name="credit"
-                           step="0.01" min="0.01" placeholder="0.00">
+                           min="1" placeholder="0" required>
                 </div>
                 <div class="form-group">
                     <label for="purchaseNotes">Notes</label>
@@ -112,63 +143,41 @@
                     <button type="submit" class="btn btn-primary">Save</button>
                 </div>
             </div>
-            <div id="addTransactionError" class="form-error" style="display: none;"></div>
+            <div id="addPurchaseError" class="form-error" style="display: none;"></div>
         </form>
     </div>
 
-    <!-- Transaction History -->
+    <!-- Purchase History -->
     <div class="purchase-history">
-        <h2>Transaction History</h2>
-        {% if transactions %}
+        <h2>Purchase History</h2>
+        {% if purchases %}
         <div class="table-container">
             <table class="purchases-table">
                 <thead>
                     <tr>
-                        <th>Type</th>
                         <th>Date</th>
                         <th>Price/Unit</th>
                         <th>Quantity</th>
-                        <th>Fees</th>
-                        <th>Debit</th>
-                        <th>Credit</th>
+                        <th>Total Cost</th>
                         <th>Current Value</th>
                         <th>Profit/Loss</th>
-                        <th>Notes</th>
                         <th></th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for t in transactions %}
+                    {% for p in purchases %}
                     <tr>
-                        <td>
-                            <span class="txn-type-badge {{ 'txn-purchase' if t.transaction_type|default('purchase') == 'purchase' else 'txn-dividend' }}">
-                                {{ t.transaction_type|default('purchase')|capitalize }}
-                            </span>
+                        <td>{{ p.purchase_date }}</td>
+                        <td>${{ "%.2f"|format(p.price_per_unit) }}</td>
+                        <td>{{ p.quantity }}</td>
+                        <td>${{ "%.2f"|format(p.total_cost) }}</td>
+                        <td>${{ "%.2f"|format(p.current_value) }}</td>
+                        <td class="{{ 'gain' if p.is_gain else 'loss' }}">
+                            {{ "+" if p.is_gain else "" }}${{ "%.2f"|format(p.profit) }}
                         </td>
-                        <td>{{ t.purchase_date }}</td>
-                        {% if t.transaction_type|default('purchase') == 'purchase' %}
-                        <td>${{ "%.2f"|format(t.price_per_unit) }}</td>
-                        <td>{{ "%.2f"|format(t.quantity) }}</td>
-                        <td>${{ "%.2f"|format(t.fees|default(0)) }}</td>
-                        <td>${{ "%.2f"|format(t.debit|default(t.total_cost)) }}</td>
-                        <td>-</td>
-                        <td>${{ "%.2f"|format(t.current_value) }}</td>
-                        <td class="{{ 'gain' if t.is_gain else 'loss' }}">
-                            {{ "+" if t.is_gain else "" }}${{ "%.2f"|format(t.profit) }}
-                        </td>
-                        {% else %}
-                        <td>-</td>
-                        <td>-</td>
-                        <td>-</td>
-                        <td>-</td>
-                        <td class="gain">${{ "%.2f"|format(t.credit|default(0)) }}</td>
-                        <td>-</td>
-                        <td class="gain">+${{ "%.2f"|format(t.credit|default(0)) }}</td>
-                        {% endif %}
-                        <td class="notes-cell">{{ t.notes or "" }}</td>
                         <td>
                             <button class="btn btn-danger btn-small"
-                                    onclick="deleteTransaction('{{ asset._id }}', '{{ t._id }}')">
+                                    onclick="deletePurchase('{{ asset.id }}', '{{ p.id }}')">
                                 Delete
                             </button>
                         </td>
@@ -179,16 +188,15 @@
         </div>
         {% else %}
         <div class="empty-state empty-state-small">
-            <p>No transactions recorded yet. Add your first transaction above.</p>
+            <p>No purchases yet. Add your first purchase above.</p>
         </div>
         {% endif %}
     </div>
 
-    <!-- Chart & Analysis (bottom of page): embedded chart + open in new tab -->
+    <!-- TradingView Chart & open link -->
     <div class="tradingview-section tradingview-section-bottom">
         <h2>Chart &amp; Analysis</h2>
         <p class="tradingview-attribution">Charts and data by <a href="https://www.tradingview.com/" target="_blank" rel="noopener">TradingView</a></p>
-
         <div class="tradingview-chart-container">
             <div class="tradingview-widget-container tradingview-widget-container--large">
                 <div class="tradingview-widget-container__widget"></div>
@@ -210,7 +218,6 @@
                 </script>
             </div>
         </div>
-
         <a href="https://www.tradingview.com/symbols/{{ tv_symbol|replace(':', '-') }}/" target="_blank" rel="noopener noreferrer" class="tradingview-open-link">
             <span class="tradingview-open-icon">&#x1F4C8;</span>
             Open {{ asset.symbol }} on TradingView (full view)
