@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+
+{% block title %}{{ asset.symbol }} - StockFolio{% endblock %}
+
+{% block content %}
+<div class="asset-detail-container">
+    <!-- Back Link -->
+    <a href="/dashboard" class="back-link">&larr; Back to Dashboard</a>
+
+    <!-- Asset Header -->
+    <div class="asset-header">
+        <div class="asset-header-info">
+            <h1>
+                <span class="asset-detail-symbol">{{ asset.symbol }}</span>
+                <span class="asset-detail-name">{{ asset.name }}</span>
+            </h1>
+            <div class="asset-meta">
+                <span class="asset-exchange-badge">{{ asset.exchange }}</span>
+                <span class="asset-type-badge">{{ asset.asset_type }}</span>
+            </div>
+        </div>
+        <div class="asset-header-price">
+            <div class="current-price-large">${{ "%.2f"|format(current_price) }}</div>
+            <div class="price-change {{ 'gain' if stock_info.change_amount >= 0 else 'loss' }}">
+                {{ "+" if stock_info.change_amount >= 0 else "" }}${{ "%.2f"|format(stock_info.change_amount) }}
+                ({{ "+" if stock_info.change_percent >= 0 else "" }}{{ "%.2f"|format(stock_info.change_percent) }}%)
+            </div>
+        </div>
+        <button class="btn btn-danger btn-small" onclick="deleteAsset('{{ asset._id }}', '{{ asset.symbol }}')">
+            Delete Asset
+        </button>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="asset-summary">
+        <div class="summary-card">
+            <span class="summary-label">Total Units</span>
+            <span class="summary-value">{{ "%.2f"|format(total_units) }}</span>
+        </div>
+        <div class="summary-card">
+            <span class="summary-label">Total Paid</span>
+            <span class="summary-value">${{ "%.2f"|format(total_paid) }}</span>
+        </div>
+        <div class="summary-card">
+            <span class="summary-label">Current Value</span>
+            <span class="summary-value">${{ "%.2f"|format(total_value) }}</span>
+        </div>
+        <div class="summary-card">
+            <span class="summary-label">Total Fees</span>
+            <span class="summary-value">${{ "%.2f"|format(total_fees) }}</span>
+        </div>
+        <div class="summary-card">
+            <span class="summary-label">Dividends</span>
+            <span class="summary-value gain">${{ "%.2f"|format(total_dividends) }}</span>
+        </div>
+        <div class="summary-card">
+            <span class="summary-label">Profit / Loss</span>
+            <span class="summary-value {{ 'gain' if is_gain else 'loss' }}">
+                {{ "+" if is_gain else "" }}${{ "%.2f"|format(total_profit) }}
+            </span>
+        </div>
+        <div class="summary-card">
+            <span class="summary-label">Status</span>
+            <span class="summary-value {{ 'gain' if is_gain else 'loss' }}">
+                {{ "Gaining" if is_gain else "Losing" }}
+            </span>
+        </div>
+    </div>
+
+    <!-- Add Transaction Section -->
+    <div class="add-purchase-section">
+        <h2>Add Transaction</h2>
+        <form id="addTransactionForm" class="purchase-form" data-asset-id="{{ asset._id }}">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="transactionType">Type</label>
+                    <select id="transactionType" name="transaction_type">
+                        <option value="purchase" selected>Purchase</option>
+                        <option value="dividend">Dividend</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="purchaseDate">Date</label>
+                    <input type="date" id="purchaseDate" name="purchase_date" required>
+                </div>
+                <div class="form-group purchase-field">
+                    <label for="purchasePrice">Price per Unit ($)</label>
+                    <input type="number" id="purchasePrice" name="price_per_unit"
+                           step="0.01" min="0.01" placeholder="0.00">
+                </div>
+                <div class="form-group purchase-field">
+                    <label for="purchaseQuantity">Quantity</label>
+                    <input type="number" id="purchaseQuantity" name="quantity"
+                           step="0.01" min="0.01" placeholder="0">
+                </div>
+                <div class="form-group purchase-field">
+                    <label for="purchaseFees">Fees ($)</label>
+                    <input type="number" id="purchaseFees" name="fees"
+                           step="0.01" min="0" placeholder="0.00" value="0">
+                </div>
+                <div class="form-group dividend-field" style="display: none;">
+                    <label for="dividendAmount">Amount ($)</label>
+                    <input type="number" id="dividendAmount" name="credit"
+                           step="0.01" min="0.01" placeholder="0.00">
+                </div>
+                <div class="form-group">
+                    <label for="purchaseNotes">Notes</label>
+                    <input type="text" id="purchaseNotes" name="notes"
+                           placeholder="Optional notes">
+                </div>
+                <div class="form-group form-group-btn">
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </div>
+            </div>
+            <div id="addTransactionError" class="form-error" style="display: none;"></div>
+        </form>
+    </div>
+
+    <!-- Transaction History -->
+    <div class="purchase-history">
+        <h2>Transaction History</h2>
+        {% if transactions %}
+        <div class="table-container">
+            <table class="purchases-table">
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Date</th>
+                        <th>Price/Unit</th>
+                        <th>Quantity</th>
+                        <th>Fees</th>
+                        <th>Debit</th>
+                        <th>Credit</th>
+                        <th>Current Value</th>
+                        <th>Profit/Loss</th>
+                        <th>Notes</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in transactions %}
+                    <tr>
+                        <td>
+                            <span class="txn-type-badge {{ 'txn-purchase' if t.transaction_type|default('purchase') == 'purchase' else 'txn-dividend' }}">
+                                {{ t.transaction_type|default('purchase')|capitalize }}
+                            </span>
+                        </td>
+                        <td>{{ t.purchase_date }}</td>
+                        {% if t.transaction_type|default('purchase') == 'purchase' %}
+                        <td>${{ "%.2f"|format(t.price_per_unit) }}</td>
+                        <td>{{ "%.2f"|format(t.quantity) }}</td>
+                        <td>${{ "%.2f"|format(t.fees|default(0)) }}</td>
+                        <td>${{ "%.2f"|format(t.debit|default(t.total_cost)) }}</td>
+                        <td>-</td>
+                        <td>${{ "%.2f"|format(t.current_value) }}</td>
+                        <td class="{{ 'gain' if t.is_gain else 'loss' }}">
+                            {{ "+" if t.is_gain else "" }}${{ "%.2f"|format(t.profit) }}
+                        </td>
+                        {% else %}
+                        <td>-</td>
+                        <td>-</td>
+                        <td>-</td>
+                        <td>-</td>
+                        <td class="gain">${{ "%.2f"|format(t.credit|default(0)) }}</td>
+                        <td>-</td>
+                        <td class="gain">+${{ "%.2f"|format(t.credit|default(0)) }}</td>
+                        {% endif %}
+                        <td class="notes-cell">{{ t.notes or "" }}</td>
+                        <td>
+                            <button class="btn btn-danger btn-small"
+                                    onclick="deleteTransaction('{{ asset._id }}', '{{ t._id }}')">
+                                Delete
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state empty-state-small">
+            <p>No transactions recorded yet. Add your first transaction above.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Chart & Analysis (bottom of page): embedded chart + open in new tab -->
+    <div class="tradingview-section tradingview-section-bottom">
+        <h2>Chart &amp; Analysis</h2>
+        <p class="tradingview-attribution">Charts and data by <a href="https://www.tradingview.com/" target="_blank" rel="noopener">TradingView</a></p>
+
+        <div class="tradingview-chart-container">
+            <div class="tradingview-widget-container tradingview-widget-container--large">
+                <div class="tradingview-widget-container__widget"></div>
+                <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
+                {
+                    "autosize": true,
+                    "width": "100%",
+                    "height": "100%",
+                    "symbol": "{{ tv_symbol }}",
+                    "interval": "D",
+                    "timezone": "Etc/UTC",
+                    "theme": "light",
+                    "style": "1",
+                    "locale": "en",
+                    "allow_symbol_change": true,
+                    "calendar": false,
+                    "support_host": "https://www.tradingview.com"
+                }
+                </script>
+            </div>
+        </div>
+
+        <a href="https://www.tradingview.com/symbols/{{ tv_symbol|replace(':', '-') }}/" target="_blank" rel="noopener noreferrer" class="tradingview-open-link">
+            <span class="tradingview-open-icon">&#x1F4C8;</span>
+            Open {{ asset.symbol }} on TradingView (full view)
+        </a>
+    </div>
+</div>
+{% endblock %}

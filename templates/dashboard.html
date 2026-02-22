@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - StockFolio{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="dashboard-header">
+        <h1>My Portfolio</h1>
+        <button class="btn btn-primary" onclick="openAddAssetModal()">+ Add Asset</button>
+    </div>
+
+    <!-- Portfolio Summary -->
+    <div class="portfolio-summary">
+        <div class="summary-card">
+            <span class="summary-label">Total Invested</span>
+            <span class="summary-value">${{ "%.2f"|format(portfolio_invested) }}</span>
+        </div>
+        <div class="summary-card">
+            <span class="summary-label">Current Value</span>
+            <span class="summary-value">${{ "%.2f"|format(portfolio_value) }}</span>
+        </div>
+        <div class="summary-card">
+            <span class="summary-label">Dividends</span>
+            <span class="summary-value gain">${{ "%.2f"|format(portfolio_dividends) }}</span>
+        </div>
+        <div class="summary-card">
+            <span class="summary-label">Total Profit/Loss</span>
+            <span class="summary-value {{ 'gain' if portfolio_is_gain else 'loss' }}">
+                {{ "+" if portfolio_is_gain else "" }}${{ "%.2f"|format(portfolio_profit) }}
+            </span>
+        </div>
+    </div>
+
+    <!-- Asset Cards Grid -->
+    {% if assets %}
+    <div class="assets-grid">
+        {% for asset in assets %}
+        <a href="/dashboard/asset/{{ asset._id }}" class="asset-card-link">
+            <div class="asset-card">
+                <div class="asset-card-header">
+                    <div class="asset-symbol">{{ asset.symbol }}</div>
+                    <div class="asset-type-badge">{{ asset.asset_type }}</div>
+                </div>
+                <div class="asset-name">{{ asset.name }}</div>
+                <div class="asset-exchange">{{ asset.exchange }}</div>
+
+                <div class="asset-card-price">
+                    <span class="asset-current-price">${{ "%.2f"|format(asset.current_price) }}</span>
+                    <span class="asset-change {{ 'gain' if asset.change_percent >= 0 else 'loss' }}">
+                        {{ "+" if asset.change_percent >= 0 else "" }}{{ "%.2f"|format(asset.change_percent) }}%
+                    </span>
+                </div>
+
+                <div class="asset-card-details">
+                    <div class="detail-row">
+                        <span>Units</span>
+                        <span>{{ "%.2f"|format(asset.total_units) }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span>Invested</span>
+                        <span>${{ "%.2f"|format(asset.total_paid) }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span>Value</span>
+                        <span>${{ "%.2f"|format(asset.total_value) }}</span>
+                    </div>
+                    {% if asset.total_dividends > 0 %}
+                    <div class="detail-row">
+                        <span>Dividends</span>
+                        <span class="gain">${{ "%.2f"|format(asset.total_dividends) }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="asset-card-profit {{ 'gain-bg' if asset.is_gain else 'loss-bg' }}">
+                    <span>{{ "Gain" if asset.is_gain else "Loss" }}</span>
+                    <span>{{ "+" if asset.is_gain else "" }}${{ "%.2f"|format(asset.total_profit) }}</span>
+                </div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-state-icon">&#x1F4C8;</div>
+        <h3>No assets yet</h3>
+        <p>Add your first stock or ETF to start tracking your portfolio.</p>
+        <button class="btn btn-primary" onclick="openAddAssetModal()">+ Add Your First Asset</button>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Add Asset Modal -->
+<div id="addAssetModal" class="modal" style="display: none;">
+    <div class="modal-overlay" onclick="closeAddAssetModal()"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Add Asset</h2>
+            <button class="modal-close" onclick="closeAddAssetModal()">&times;</button>
+        </div>
+        <form id="addAssetForm" class="modal-form">
+            <div class="form-group">
+                <label for="assetSymbol">Symbol</label>
+                <div class="symbol-lookup-group">
+                    <input type="text" id="assetSymbol" name="symbol" required
+                           placeholder="e.g. AAPL, MSFT, SPY" autocomplete="off">
+                    <button type="button" class="btn btn-secondary" onclick="lookupSymbol()">Lookup</button>
+                </div>
+                <div id="symbolLookupResult" class="lookup-result" style="display: none;"></div>
+            </div>
+            <div class="form-group">
+                <label for="assetName">Name</label>
+                <input type="text" id="assetName" name="name"
+                       placeholder="Company / asset name (auto-filled on lookup)">
+            </div>
+            <div class="form-group">
+                <label for="assetExchange">Exchange</label>
+                <input type="text" id="assetExchange" name="exchange"
+                       placeholder="e.g. NASDAQ (auto-filled on lookup)">
+            </div>
+            <div class="form-group">
+                <label for="assetType">Type</label>
+                <select id="assetType" name="asset_type">
+                    <option value="stock">Stock</option>
+                    <option value="etf">ETF</option>
+                    <option value="crypto">Crypto</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+            <div id="addAssetError" class="form-error" style="display: none;"></div>
+            <button type="submit" class="btn btn-primary btn-full">Add Asset</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

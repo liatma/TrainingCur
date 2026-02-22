@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}{{ asset.symbol }} - StockFolio{% endblock %}
+
+{% block content %}
+<div class="asset-detail-container asset-detail-with-nav">
+    <a href="/dashboard" class="back-link">&larr; Back to Dashboard</a>
+
+    <div class="asset-page-layout">
+        <nav class="asset-side-nav">
+            <div class="asset-side-nav-header">{{ asset.symbol }}</div>
+            <ul class="asset-side-nav-list">
+                <li>
+                    <a href="/dashboard/asset/{{ asset._id }}" class="asset-nav-link {{ 'active' if asset_view == 'overview' else '' }}">
+                        Overview
+                    </a>
+                </li>
+                <li>
+                    <a href="/dashboard/asset/{{ asset._id }}/company" class="asset-nav-link {{ 'active' if asset_view == 'company' else '' }}">
+                        Company details
+                    </a>
+                </li>
+                <li>
+                    <a href="/dashboard/asset/{{ asset._id }}/purchases" class="asset-nav-link {{ 'active' if asset_view == 'purchases' else '' }}">
+                        Purchase details
+                    </a>
+                </li>
+            </ul>
+        </nav>
+
+        <main class="asset-main-content">
+            {% block asset_content %}{% endblock %}
+        </main>
+    </div>
+</div>
+{% endblock %}
