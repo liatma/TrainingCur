@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}StockFolio - Track Your Portfolio{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <div class="hero-content">
+        <h1>Track Your Portfolio,<br>See Your Gains</h1>
+        <p class="hero-subtitle">
+            Manage your stocks, ETFs, and investments in one place.
+            Get real-time prices, track your purchases, and know exactly where you stand.
+        </p>
+        <div class="hero-buttons">
+            {% if user %}
+                <a href="/dashboard" class="btn btn-primary btn-large">Go to Dashboard</a>
+            {% else %}
+                <a href="/register" class="btn btn-primary btn-large">Get Started</a>
+                <a href="/login" class="btn btn-secondary btn-large">Log In</a>
+            {% endif %}
+        </div>
+    </div>
+</section>
+
+<section class="features">
+    <div class="features-grid">
+        <div class="feature-card">
+            <div class="feature-icon">&#x1F4CA;</div>
+            <h3>Real-Time Prices</h3>
+            <p>See current market prices for all your assets, updated on every page load.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">&#x1F4BC;</div>
+            <h3>Portfolio Overview</h3>
+            <p>View your total invested, current value, and profit or loss at a glance.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">&#x1F4DD;</div>
+            <h3>Purchase Tracking</h3>
+            <p>Record every purchase with price, date, and quantity. See performance per batch.</p>
+        </div>
+    </div>
+</section>
+{% endblock %}

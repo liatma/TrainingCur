@@ -656,6 +656,96 @@ a:hover {
 }
 
 /* --- Add Purchase Section --- */
+/* --- TradingView Section (bottom link, opens in new tab) --- */
+.tradingview-section {
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 28px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    margin-bottom: 24px;
+}
+
+.tradingview-section-bottom {
+    margin-top: 32px;
+}
+
+.tradingview-section h2 {
+    font-size: 1.2rem;
+    color: #1a1a2e;
+    margin-bottom: 6px;
+}
+
+.tradingview-attribution {
+    font-size: 0.9rem;
+    color: #636e72;
+    margin-bottom: 16px;
+}
+
+.tradingview-attribution a {
+    color: #2563eb;
+}
+
+.tradingview-chart-container {
+    margin-bottom: 20px;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #fafafa;
+    height: 1040px;
+    width: 100%;
+    position: relative;
+}
+
+.tradingview-chart-container .tradingview-widget-container--large {
+    height: 100%;
+    width: 100%;
+    position: relative;
+    display: block;
+}
+
+.tradingview-chart-container .tradingview-widget-container__widget {
+    height: 100%;
+    width: 100%;
+    position: relative;
+    display: block;
+}
+
+/* Force TradingView-injected iframe to fill the container */
+.tradingview-chart-container iframe {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    border: none !important;
+}
+
+.tradingview-open-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 24px;
+    background: #2563eb;
+    color: #ffffff;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 1rem;
+    text-decoration: none;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+    transition: background 0.2s, box-shadow 0.2s, transform 0.2s;
+}
+
+.tradingview-open-link:hover {
+    background: #1d4ed8;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+    transform: translateY(-1px);
+    text-decoration: none;
+    color: #ffffff;
+}
+
+.tradingview-open-icon {
+    font-size: 1.3rem;
+}
+
 .add-purchase-section {
     background: #ffffff;
     border-radius: 16px;
@@ -739,6 +829,37 @@ a:hover {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+/* --- Transaction Type Badges --- */
+.txn-type-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+}
+
+.txn-purchase {
+    background: #e8f0fe;
+    color: #1a56db;
+}
+
+.txn-dividend {
+    background: #d4edda;
+    color: #155724;
+}
+
+/* --- Transaction Form Type Selector --- */
+#transactionType {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    background: #ffffff;
+    color: #2d3436;
 }
 
 /* --- Modal --- */

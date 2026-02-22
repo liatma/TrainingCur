@@ -67,14 +67,47 @@ def get_stock_info(symbol: str) -> dict:
             change_amount = 0
             change_percent = 0
 
-        # Get name from .info (has more metadata)
+        # Get name and extended company info from .info
         try:
             info = ticker.info
             name = info.get("shortName") or info.get("longName", symbol)
             sector = info.get("sector", "N/A")
+            # Extended company details for Company details page
+            long_name = info.get("longName") or name
+            industry = info.get("industry") or None
+            website = info.get("website") or None
+            week_52_high = info.get("fiftyTwoWeekHigh")
+            week_52_low = info.get("fiftyTwoWeekLow")
+            avg_volume = info.get("averageVolume")
+            volume = info.get("volume") or fi.get("lastVolume")
+            enterprise_value = info.get("enterpriseValue")
+            trailing_pe = info.get("trailingPE")
+            forward_pe = info.get("forwardPE")
+            peg_ratio = info.get("pegRatio")
+            price_to_book = info.get("priceToBook")
+            dividend_yield = info.get("dividendYield")
+            payout_ratio = info.get("payoutRatio")
+            ex_dividend_date = info.get("exDividendDate")
+            beta = info.get("beta")
+            recommendation = info.get("recommendationKey")
+            target_mean_price = info.get("targetMeanPrice")
+            num_analysts = info.get("numberOfAnalystOpinions")
+            description = info.get("longBusinessSummary")
+            full_time_employees = info.get("fullTimeEmployees")
+            address = info.get("address1")
+            city = info.get("city")
+            state = info.get("state")
+            country = info.get("country")
         except Exception:
             name = symbol
             sector = "N/A"
+            long_name = name
+            industry = website = None
+            week_52_high = week_52_low = avg_volume = volume = None
+            enterprise_value = trailing_pe = forward_pe = peg_ratio = price_to_book = None
+            dividend_yield = payout_ratio = ex_dividend_date = beta = None
+            recommendation = target_mean_price = num_analysts = None
+            description = full_time_employees = address = city = state = country = None
 
         data = {
             "symbol": symbol,
@@ -90,6 +123,32 @@ def get_stock_info(symbol: str) -> dict:
             "market_cap": market_cap,
             "sector": sector,
             "success": True,
+            # Company details page fields
+            "long_name": long_name,
+            "industry": industry,
+            "website": website,
+            "fifty_two_week_high": week_52_high,
+            "fifty_two_week_low": week_52_low,
+            "average_volume": avg_volume,
+            "volume": volume,
+            "enterprise_value": enterprise_value,
+            "trailing_pe": trailing_pe,
+            "forward_pe": forward_pe,
+            "peg_ratio": peg_ratio,
+            "price_to_book": price_to_book,
+            "dividend_yield": dividend_yield,
+            "payout_ratio": payout_ratio,
+            "ex_dividend_date": ex_dividend_date,
+            "beta": beta,
+            "recommendation_key": recommendation,
+            "target_mean_price": target_mean_price,
+            "number_of_analyst_opinions": num_analysts,
+            "description": description,
+            "full_time_employees": full_time_employees,
+            "address": address,
+            "city": city,
+            "state": state,
+            "country": country,
         }
 
         # Cache the result
@@ -113,6 +172,31 @@ def get_stock_info(symbol: str) -> dict:
             "sector": "N/A",
             "success": False,
             "error": str(e),
+            "long_name": symbol,
+            "industry": None,
+            "website": None,
+            "fifty_two_week_high": None,
+            "fifty_two_week_low": None,
+            "average_volume": None,
+            "volume": None,
+            "enterprise_value": None,
+            "trailing_pe": None,
+            "forward_pe": None,
+            "peg_ratio": None,
+            "price_to_book": None,
+            "dividend_yield": None,
+            "payout_ratio": None,
+            "ex_dividend_date": None,
+            "beta": None,
+            "recommendation_key": None,
+            "target_mean_price": None,
+            "number_of_analyst_opinions": None,
+            "description": None,
+            "full_time_employees": None,
+            "address": None,
+            "city": None,
+            "state": None,
+            "country": None,
         }
 
 

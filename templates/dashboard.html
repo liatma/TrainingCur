@@ -20,6 +20,10 @@
             <span class="summary-value">${{ "%.2f"|format(portfolio_value) }}</span>
         </div>
         <div class="summary-card">
+            <span class="summary-label">Dividends</span>
+            <span class="summary-value gain">${{ "%.2f"|format(portfolio_dividends) }}</span>
+        </div>
+        <div class="summary-card">
             <span class="summary-label">Total Profit/Loss</span>
             <span class="summary-value {{ 'gain' if portfolio_is_gain else 'loss' }}">
                 {{ "+" if portfolio_is_gain else "" }}${{ "%.2f"|format(portfolio_profit) }}
@@ -60,6 +64,12 @@
                         <span>Value</span>
                         <span>${{ "%.2f"|format(asset.total_value) }}</span>
                     </div>
+                    {% if asset.total_dividends > 0 %}
+                    <div class="detail-row">
+                        <span>Dividends</span>
+                        <span class="gain">${{ "%.2f"|format(asset.total_dividends) }}</span>
+                    </div>
+                    {% endif %}
                 </div>
 
                 <div class="asset-card-profit {{ 'gain-bg' if asset.is_gain else 'loss-bg' }}">

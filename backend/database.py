@@ -13,14 +13,14 @@ client: Optional[AsyncMongoClient] = None
 async def connect_to_mongo():
     """Create MongoDB async client and initialize indexes."""
     global client
-    client = await AsyncMongoClient(MONGO_URL).aconnect()
+    client = AsyncMongoClient(MONGO_URL)
 
     db = client[DB_NAME]
 
     # Create indexes
     await db.users.create_index("username", unique=True)
     await db.assets.create_index("user_id")
-    await db.purchases.create_index("asset_id")
+    await db.transactions.create_index("asset_id")
 
 
 async def close_mongo_connection():

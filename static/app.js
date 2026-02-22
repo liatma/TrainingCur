@@ -6,8 +6,11 @@ document.addEventListener('DOMContentLoaded', function () {
     // --- Add Asset Modal ---
     setupAddAssetForm();
 
-    // --- Add Purchase Form ---
-    setupAddPurchaseForm();
+    // --- Add Transaction Form ---
+    setupAddTransactionForm();
+
+    // --- Transaction type toggle ---
+    setupTransactionTypeToggle();
 
     // --- Set default date for purchase date input ---
     const purchaseDateInput = document.getElementById('purchaseDate');
@@ -151,59 +154,110 @@ function setupAddAssetForm() {
 
 
 // ========================================
-// Add Purchase Form
+// Transaction Type Toggle
 // ========================================
 
-function setupAddPurchaseForm() {
-    const form = document.getElementById('addPurchaseForm');
+function setupTransactionTypeToggle() {
+    const typeSelect = document.getElementById('transactionType');
+    if (!typeSelect) return;
+
+    typeSelect.addEventListener('change', function () {
+        toggleTransactionFields(this.value);
+    });
+
+    // Initialize on load
+    toggleTransactionFields(typeSelect.value);
+}
+
+function toggleTransactionFields(txnType) {
+    const purchaseFields = document.querySelectorAll('.purchase-field');
+    const dividendFields = document.querySelectorAll('.dividend-field');
+
+    if (txnType === 'dividend') {
+        purchaseFields.forEach(function (el) { el.style.display = 'none'; });
+        dividendFields.forEach(function (el) { el.style.display = ''; });
+    } else {
+        purchaseFields.forEach(function (el) { el.style.display = ''; });
+        dividendFields.forEach(function (el) { el.style.display = 'none'; });
+    }
+}
+
+
+// ========================================
+// Add Transaction Form
+// ========================================
+
+function setupAddTransactionForm() {
+    const form = document.getElementById('addTransactionForm');
     if (!form) return;
 
     const assetId = form.dataset.assetId;
 
     form.addEventListener('submit', async function (e) {
         e.preventDefault();
-        hideElement('addPurchaseError');
+        hideElement('addTransactionError');
 
-        const pricePerUnit = parseFloat(document.getElementById('purchasePrice').value);
-        const quantity = parseFloat(document.getElementById('purchaseQuantity').value);
+        const transactionType = document.getElementById('transactionType').value;
         const purchaseDate = document.getElementById('purchaseDate').value;
         const notes = document.getElementById('purchaseNotes').value.trim();
 
-        if (!pricePerUnit || pricePerUnit <= 0) {
-            showFormError('addPurchaseError', 'Price must be a positive number');
-            return;
-        }
-        if (!quantity || quantity <= 0) {
-            showFormError('addPurchaseError', 'Quantity must be a positive number');
-            return;
-        }
         if (!purchaseDate) {
-            showFormError('addPurchaseError', 'Date is required');
+            showFormError('addTransactionError', 'Date is required');
             return;
         }
 
+        var body = {
+            transaction_type: transactionType,
+            purchase_date: purchaseDate,
+            notes: notes
+        };
+
+        if (transactionType === 'purchase') {
+            var pricePerUnit = parseFloat(document.getElementById('purchasePrice').value);
+            var quantity = parseFloat(document.getElementById('purchaseQuantity').value);
+            var fees = parseFloat(document.getElementById('purchaseFees').value) || 0;
+
+            if (!pricePerUnit || pricePerUnit <= 0) {
+                showFormError('addTransactionError', 'Price must be a positive number');
+                return;
+            }
+            if (!quantity || quantity <= 0) {
+                showFormError('addTransactionError', 'Quantity must be a positive number');
+                return;
+            }
+
+            body.price_per_unit = pricePerUnit;
+            body.quantity = quantity;
+            body.fees = fees;
+        } else {
+            // Dividend
+            var creditAmount = parseFloat(document.getElementById('dividendAmount').value);
+
+            if (!creditAmount || creditAmount <= 0) {
+                showFormError('addTransactionError', 'Dividend amount must be a positive number');
+                return;
+            }
+
+            body.credit = creditAmount;
+        }
+
         try {
-            const response = await fetch('/api/assets/' + assetId + '/purchases', {
+            const response = await fetch('/api/assets/' + assetId + '/transactions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    price_per_unit: pricePerUnit,
-                    quantity: quantity,
-                    purchase_date: purchaseDate,
-                    notes: notes
-                })
+                body: JSON.stringify(body)
             });
 
             const data = await response.json();
 
             if (data.success) {
-                // Reload page to show new purchase
+                // Reload page to show new transaction
                 window.location.reload();
             } else {
-                showFormError('addPurchaseError', data.error || 'Failed to add purchase');
+                showFormError('addTransactionError', data.error || 'Failed to add transaction');
             }
         } catch (err) {
-            showFormError('addPurchaseError', 'Error: ' + err.message);
+            showFormError('addTransactionError', 'Error: ' + err.message);
         }
     });
 }
@@ -214,7 +268,7 @@ function setupAddPurchaseForm() {
 // ========================================
 
 async function deleteAsset(assetId, symbol) {
-    if (!confirm('Are you sure you want to delete ' + symbol + ' and all its purchases? This cannot be undone.')) {
+    if (!confirm('Are you sure you want to delete ' + symbol + ' and all its transactions? This cannot be undone.')) {
         return;
     }
 
@@ -235,13 +289,13 @@ async function deleteAsset(assetId, symbol) {
     }
 }
 
-async function deletePurchase(assetId, purchaseId) {
-    if (!confirm('Are you sure you want to delete this purchase? This cannot be undone.')) {
+async function deleteTransaction(assetId, transactionId) {
+    if (!confirm('Are you sure you want to delete this transaction? This cannot be undone.')) {
         return;
     }
 
     try {
-        const response = await fetch('/api/assets/' + assetId + '/purchases/' + purchaseId, {
+        const response = await fetch('/api/assets/' + assetId + '/transactions/' + transactionId, {
             method: 'DELETE'
         });
 
@@ -250,10 +304,10 @@ async function deletePurchase(assetId, purchaseId) {
         if (data.success) {
             window.location.reload();
         } else {
-            alert('Failed to delete purchase: ' + (data.error || 'Unknown error'));
+            alert('Failed to delete transaction: ' + (data.error || 'Unknown error'));
         }
     } catch (err) {
-        alert('Error deleting purchase: ' + err.message);
+        alert('Error deleting transaction: ' + err.message);
     }
 }
 

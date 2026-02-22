@@ -90,7 +90,7 @@ async def create_asset(request: Request):
 
 @router.delete("/assets/{asset_id}")
 async def delete_asset(request: Request, asset_id: str):
-    """Remove an asset and all its purchases."""
+    """Remove an asset and all its transactions."""
     user = await get_current_user(request)
     if not user:
         return JSONResponse({"error": "Not authenticated"}, status_code=401)
@@ -104,8 +104,8 @@ async def delete_asset(request: Request, asset_id: str):
     if not asset:
         return JSONResponse({"error": "Asset not found"}, status_code=404)
 
-    # Delete all purchases for this asset
-    await db.purchases.delete_many({"asset_id": asset_id})
+    # Delete all transactions for this asset
+    await db.transactions.delete_many({"asset_id": asset_id})
 
     # Delete the asset
     await db.assets.delete_one({"_id": ObjectId(asset_id)})
@@ -113,11 +113,11 @@ async def delete_asset(request: Request, asset_id: str):
     return {"success": True, "message": f"Asset {asset['symbol']} deleted"}
 
 
-# --- Purchases CRUD ---
+# --- Transactions CRUD ---
 
-@router.post("/assets/{asset_id}/purchases")
-async def create_purchase(request: Request, asset_id: str):
-    """Add a purchase to an asset."""
+@router.post("/assets/{asset_id}/transactions")
+async def create_transaction(request: Request, asset_id: str):
+    """Add a transaction (purchase or dividend) to an asset."""
     user = await get_current_user(request)
     if not user:
         return JSONResponse({"error": "Not authenticated"}, status_code=401)
@@ -132,35 +132,63 @@ async def create_purchase(request: Request, asset_id: str):
         return JSONResponse({"error": "Asset not found"}, status_code=404)
 
     body = await request.json()
-    price_per_unit = float(body.get("price_per_unit", 0))
-    quantity = float(body.get("quantity", 0))
+    transaction_type = body.get("transaction_type", "purchase").strip().lower()
     purchase_date = body.get("purchase_date", "")
     notes = body.get("notes", "")
 
-    if price_per_unit <= 0 or quantity <= 0:
+    if transaction_type not in ("purchase", "dividend"):
         return JSONResponse(
-            {"error": "Price and quantity must be positive"}, status_code=400
+            {"error": "Transaction type must be 'purchase' or 'dividend'"},
+            status_code=400,
         )
 
-    purchase_doc = {
+    if transaction_type == "purchase":
+        price_per_unit = float(body.get("price_per_unit", 0))
+        quantity = float(body.get("quantity", 0))
+        fees = float(body.get("fees", 0))
+
+        if price_per_unit <= 0 or quantity <= 0:
+            return JSONResponse(
+                {"error": "Price and quantity must be positive"}, status_code=400
+            )
+
+        debit = round(price_per_unit * quantity + fees, 2)
+        credit = 0.0
+    else:
+        # Dividend
+        credit = float(body.get("credit", 0))
+        if credit <= 0:
+            return JSONResponse(
+                {"error": "Dividend amount must be positive"}, status_code=400
+            )
+        price_per_unit = 0.0
+        quantity = 0.0
+        fees = 0.0
+        debit = 0.0
+
+    transaction_doc = {
         "asset_id": asset_id,
+        "transaction_type": transaction_type,
         "price_per_unit": price_per_unit,
         "quantity": quantity,
         "purchase_date": purchase_date,
+        "fees": fees,
+        "debit": debit,
+        "credit": credit,
         "notes": notes,
         "created_at": datetime.utcnow(),
     }
-    result = await db.purchases.insert_one(purchase_doc)
+    result = await db.transactions.insert_one(transaction_doc)
 
     return {
         "success": True,
-        "purchase_id": str(result.inserted_id),
+        "transaction_id": str(result.inserted_id),
     }
 
 
-@router.delete("/assets/{asset_id}/purchases/{purchase_id}")
-async def delete_purchase(request: Request, asset_id: str, purchase_id: str):
-    """Remove a purchase."""
+@router.delete("/assets/{asset_id}/transactions/{transaction_id}")
+async def delete_transaction(request: Request, asset_id: str, transaction_id: str):
+    """Remove a transaction."""
     user = await get_current_user(request)
     if not user:
         return JSONResponse({"error": "Not authenticated"}, status_code=401)
@@ -174,11 +202,11 @@ async def delete_purchase(request: Request, asset_id: str, purchase_id: str):
     if not asset:
         return JSONResponse({"error": "Asset not found"}, status_code=404)
 
-    # Delete the purchase
-    result = await db.purchases.delete_one(
-        {"_id": ObjectId(purchase_id), "asset_id": asset_id}
+    # Delete the transaction
+    result = await db.transactions.delete_one(
+        {"_id": ObjectId(transaction_id), "asset_id": asset_id}
     )
     if result.deleted_count == 0:
-        return JSONResponse({"error": "Purchase not found"}, status_code=404)
+        return JSONResponse({"error": "Transaction not found"}, status_code=404)
 
-    return {"success": True, "message": "Purchase deleted"}
+    return {"success": True, "message": "Transaction deleted"}

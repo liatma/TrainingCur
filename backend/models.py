@@ -54,11 +54,19 @@ class AssetCreate(BaseModel):
     asset_type: str = "stock"
 
 
-class PurchaseCreate(BaseModel):
-    price_per_unit: float
-    quantity: float
+class TransactionCreate(BaseModel):
+    transaction_type: str = "purchase"  # "purchase" or "dividend"
+    price_per_unit: float = 0.0
+    quantity: float = 0.0
     purchase_date: date
+    fees: float = 0.0
+    debit: float = 0.0        # total money out (auto-calculated for purchases)
+    credit: float = 0.0       # total money in (dividend amount)
     notes: Optional[str] = ""
+
+
+# Backward-compatible alias
+PurchaseCreate = TransactionCreate
 
 
 # --- Response Models ---
@@ -86,14 +94,22 @@ class AssetResponse(BaseModel):
         populate_by_name = True
 
 
-class PurchaseResponse(BaseModel):
+class TransactionResponse(BaseModel):
     id: str = Field(alias="_id")
     asset_id: str
-    price_per_unit: float
-    quantity: float
+    transaction_type: str = "purchase"
+    price_per_unit: float = 0.0
+    quantity: float = 0.0
     purchase_date: date
+    fees: float = 0.0
+    debit: float = 0.0
+    credit: float = 0.0
     notes: Optional[str] = ""
     created_at: datetime
 
     class Config:
         populate_by_name = True
+
+
+# Backward-compatible alias
+PurchaseResponse = TransactionResponse
