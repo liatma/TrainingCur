@@ -1,108 +1,163 @@
-# TrainingCur Web Application
+# StockFolio (TrainingCur)
 
-A Python web application (StockFolio) with a FastAPI backend, Jinja2-templated frontend, MongoDB storage, and session-based authentication.
+A Python web application for managing stock market portfolios: FastAPI backend, Jinja2-templated pages, MongoDB storage, and session-based authentication.
+
+**Goal:** Let an investor manage their portfolio (stocks, ETFs, other assets). For each symbol, track purchases by date and price to compute gain/loss. Provide symbol overview, purchase details, and analysis (e.g. TradingView charts). The investor logs in to see a dashboard, add assets, record purchases and dividends, and view per-asset summaries and company data.
+
+---
+
+## Application overview
+
+- **Landing** — Description and login/register entry.
+- **Auth** — Login and register (cookie-based session; passwords hashed with bcrypt).
+- **Dashboard** — Portfolio summary (total invested, value, profit/loss, dividends) and a grid of asset cards. Each card links to the asset.
+- **Asset gateway** — Each asset has three views, reached from a **left-side menu**:
+  - **Overview** — Name, symbol, exchange, current price, summary metrics (units, total paid, value, fees, dividends, P/L, status), last 3 transactions, TradingView chart, delete asset. “View all” links to Purchase details if there are more than 3 transactions.
+  - **Company details** — yfinance-derived company/asset info (sector, industry, market cap, valuation, dividends, risk, analysts, profile). Data is grouped and only shown when present.
+  - **Purchase details** — Full transaction history (table) and **Add Transaction** form (purchase or dividend: date, price/unit, quantity, fees, or dividend amount).
+- **Transactions** — Two types: **purchase** (debit = price×quantity + fees) and **dividend** (credit = amount). Totals and P/L include fees and dividends.
+- **Live data** — Prices and company info from Yahoo Finance (yfinance). TradingView widget for charts on the asset Overview.
+
+---
 
 ## Features
 
-- **Backend**: FastAPI-based REST API with async MongoDB (PyMongo)
-- **Frontend**: Jinja2-templated HTML with modern styling
-- **Auth**: Cookie-based sessions (Starlette), password hashing (bcrypt), login/register
-- **Data**: Portfolio assets and transactions stored in MongoDB; live stock data via yfinance
-- **Architecture**: Extensible structure for adding new features
+- **Backend:** FastAPI REST API (assets, transactions, stock lookup) with async MongoDB (PyMongo).
+- **Frontend:** Jinja2 HTML templates (base, landing, login, register, dashboard, asset base/gateway and related views), shared layout, static CSS/JS.
+- **Auth:** Cookie-based sessions (Starlette `SessionMiddleware`, signed with itsdangerous), bcrypt password hashing, login/register/logout.
+- **Data:** MongoDB `portfolio_db`: collections `users`, `assets`, `transactions`. Indexes on `username`, `user_id`, `asset_id`.
+- **Stock data:** yfinance for quotes and company info; 5‑minute in-memory cache per symbol.
+- **Migration:** Optional script to import transactions from a BSON dump (see [Migration](#migration)).
+
+---
 
 ## Setup
 
-1. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
+1. **Install dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-2. Ensure MongoDB is running (default: `mongodb://localhost:27017`).
+2. **MongoDB**  
+   Ensure MongoDB is running. Default connection: `mongodb://localhost:27017`. Database name: `portfolio_db`.
 
-3. Run the application:
-```bash
-python main.py
-```
+3. **Run the application**
+   ```bash
+   python main.py
+   ```
 
-4. Open your browser and navigate to:
-```
-http://localhost:8000
-```
+4. **Browser**  
+   Open **http://localhost:8000** (or http://127.0.0.1:8000 on Windows).
+
+---
 
 ## Dependencies (`requirements.txt`)
 
-Every listed package and how it is used in this application:
-
 | Package | Version | Usage in this application |
 |--------|---------|----------------------------|
-| **fastapi** | 0.104.1 | Core web framework: `FastAPI` app, `APIRouter`, `Request`, `Form`, `Depends`, `StaticFiles`, `HTMLResponse`, `RedirectResponse`, `JSONResponse`, `Jinja2Templates`, `HTTPException`. Used in `backend/main.py`, `backend/routes/api.py`, `backend/routes/auth_routes.py`, `backend/routes/page_routes.py`, and `backend/auth.py`. |
-| **uvicorn[standard]** | 0.24.0 | ASGI server that runs the app. Used in `main.py` to start the server with `uvicorn.run("backend.main:app", host="0.0.0.0", port=8000, reload=True)`. |
-| **jinja2** | 3.1.2 | HTML templating. Used via FastAPI’s `Jinja2Templates` in `backend/routes/page_routes.py` to render pages (landing, login, register, dashboard, asset detail, company details). |
-| **python-multipart** | 0.0.6 | Parsing form data. Required by FastAPI when using `Form(...)`. Used in `backend/routes/auth_routes.py` for login and register endpoints (`username`, `password`, `display_name`). |
-| **pymongo** | 4.14.1 | MongoDB driver. Used in `backend/database.py` with `AsyncMongoClient` for connection, indexes, and database access. Also used in `migrate_transactions.py` for migration scripts. |
-| **yfinance** | 1.1.0 | Yahoo Finance data. Used in `backend/services/stock_service.py` for live quotes, company info, symbol validation, and in `migrate_transactions.py` for name/exchange lookups. |
-| **bcrypt** | 4.1.2 | Password hashing. Used in `backend/auth.py` for `hash_password()` (registration) and `verify_password()` (login). |
-| **itsdangerous** | 2.1.2 | Secure signing (e.g. cookies). Dependency of Starlette’s `SessionMiddleware`; used indirectly for signing session cookies. |
-| **starlette** | 0.27.0 | ASGI toolkit. Used in `backend/main.py` for `SessionMiddleware` (cookie-based sessions), and in `backend/auth.py` and route modules for `HTTP_303_SEE_OTHER` and status codes. |
+| **fastapi** | 0.104.1 | Web framework: `FastAPI`, `APIRouter`, `Request`, `Form`, `StaticFiles`, `Jinja2Templates`, `HTMLResponse`, `RedirectResponse`, `JSONResponse`, `HTTPException`. Used in `backend/main.py` and all route modules. |
+| **uvicorn[standard]** | 0.24.0 | ASGI server. `main.py` runs `uvicorn.run("backend.main:app", host="0.0.0.0", port=8000, reload=True)`. |
+| **jinja2** | 3.1.2 | HTML templating via FastAPI’s `Jinja2Templates` in `backend/routes/page_routes.py` for all rendered pages. |
+| **python-multipart** | 0.0.6 | Form parsing. Required by FastAPI for `Form(...)`. Used in `backend/routes/auth_routes.py` for login and register. |
+| **pymongo** | 4.14.1 | MongoDB async driver. `backend/database.py`: `AsyncMongoClient`, indexes. Routes and `migrate_transactions.py` use the same DB. |
+| **yfinance** | 1.1.0 | Yahoo Finance. `backend/services/stock_service.py`: quotes, company info, symbol lookup; used by dashboard, asset pages, and migration. |
+| **bcrypt** | 4.1.2 | Password hashing. `backend/auth.py`: `hash_password()` (register), `verify_password()` (login). |
+| **itsdangerous** | 2.1.2 | Signing. Used by Starlette’s `SessionMiddleware` to sign the session cookie. |
+| **starlette** | 0.27.0 | `SessionMiddleware` in `backend/main.py`; status codes (e.g. `HTTP_303_SEE_OTHER`) in routes and auth. |
 
-## Project Structure
+---
+
+## Data model
+
+- **users** — `username` (unique), `password` (bcrypt hash), `display_name`, `created_at`.
+- **assets** — `user_id`, `symbol`, `name`, `exchange`, `asset_type` (e.g. stock, etf), `created_at`. One asset per user per symbol.
+- **transactions** — `asset_id`, `transaction_type` (`"purchase"` or `"dividend"`), `price_per_unit`, `quantity`, `purchase_date`, `fees`, `debit`, `credit`, `notes`, `created_at`. Purchases: debit = price×quantity + fees; dividends: credit = amount.
+
+---
+
+## Routes and pages
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/` | Landing page. |
+| GET | `/login` | Login form. |
+| GET | `/register` | Registration form. |
+| POST | `/auth/login` | Login (form). |
+| POST | `/auth/register` | Register (form). |
+| GET | `/auth/logout` | Logout. |
+| GET | `/dashboard` | Dashboard (auth required). |
+| GET | `/dashboard/asset/{id}` | Asset **Overview** (gateway): summary, last 3 transactions, TradingView. |
+| GET | `/dashboard/asset/{id}/company` | **Company details** page (yfinance data). |
+| GET | `/dashboard/asset/{id}/purchases` | **Purchase details**: full transaction table + Add Transaction form. |
+| GET | `/api/hello` | Hello message. |
+| GET | `/api/stock/{symbol}` | Live stock info (JSON). |
+| POST | `/api/assets` | Create asset (auth). |
+| DELETE | `/api/assets/{id}` | Delete asset (auth). |
+| POST | `/api/assets/{id}/transactions` | Add transaction (auth). |
+| DELETE | `/api/assets/{id}/transactions/{tid}` | Delete transaction (auth). |
+
+---
+
+## Project structure
 
 ```
 TrainingCur/
 ├── backend/
 │   ├── __init__.py
-│   ├── main.py              # FastAPI app, lifespan, SessionMiddleware, static mount, routers
-│   ├── auth.py              # Password hashing (bcrypt), session/user helpers
-│   ├── database.py          # MongoDB connection (pymongo AsyncMongoClient)
+│   ├── main.py              # FastAPI app, lifespan, SessionMiddleware, static, routers
+│   ├── auth.py              # bcrypt hash/verify, get_current_user from session
+│   ├── database.py          # AsyncMongoClient, connect/close, indexes, get_database
+│   ├── models.py            # Pydantic: UserCreate, AssetCreate, TransactionCreate, responses
 │   ├── routes/
-│   │   ├── api.py           # REST API: hello, stock lookup, assets, transactions
-│   │   ├── auth_routes.py   # Login, register, logout (Form + sessions)
-│   │   └── page_routes.py   # HTML pages via Jinja2 (landing, login, register, dashboard, asset/company)
+│   │   ├── api.py           # REST: hello, stock, assets, transactions
+│   │   ├── auth_routes.py   # Login, register, logout (Form + session)
+│   │   └── page_routes.py   # All HTML routes; _load_asset_context; gateway/company/purchases
 │   └── services/
-│       └── stock_service.py # yfinance-based stock info and caching
-├── templates/               # Jinja2 HTML templates
-├── static/                  # CSS, JS, assets
-├── main.py                  # Entry point: uvicorn.run(backend.main:app)
-├── requirements.txt         # Python dependencies
-├── migrate_transactions.py  # Optional migration script (pymongo, yfinance)
+│       └── stock_service.py # yfinance: get_stock_info (incl. company fields), lookup_symbol, cache
+├── templates/
+│   ├── base.html            # Layout, nav, flash
+│   ├── landing.html
+│   ├── login.html
+│   ├── register.html
+│   ├── dashboard.html
+│   ├── index.html
+│   ├── asset_base.html      # Shared asset layout + left nav (Overview, Company details, Purchase details)
+│   ├── asset_gateway.html   # Overview content
+│   ├── asset_detail.html    # Legacy single-page asset view (if still used)
+│   ├── asset_company.html   # Company details content (required by route)
+│   └── asset_purchases.html # Purchase details content (required by route)
+├── static/
+│   ├── style.css
+│   └── app.js               # Modals, lookup, add asset, add transaction, delete, transaction type toggle
+├── main.py                  # uvicorn entry point
+├── requirements.txt
+├── migrate_transactions.py  # Import BSON dump into portfolio_db (see Migration)
 └── README.md
 ```
 
-## API Endpoints
+---
 
-- `GET /api/hello` — Returns a hardcoded "hello stranger" message
-- `GET /api/stock/{symbol}` — Live stock info (via yfinance)
-- `POST /api/assets` — Add asset (auth required)
-- `DELETE /api/assets/{asset_id}` — Delete asset (auth required)
-- `POST /api/assets/{asset_id}/transactions` — Add purchase or dividend (auth required)
-- `DELETE /api/assets/{asset_id}/transactions/{transaction_id}` — Delete transaction (auth required)
+## Migration
 
-Pages: `GET /` (landing), `/login`, `/register`, `/dashboard`, asset and company detail pages.
+`migrate_transactions.py` imports transactions from a MongoDB BSON dump (e.g. from another app) into this app’s `portfolio_db`:
 
-## Adding New Features
+1. Connects to `portfolio_db`, looks up the given username.
+2. Deletes existing documents in `transactions`.
+3. For each unique symbol in the dump: ensures an asset exists for that user (creates with yfinance name/exchange if missing).
+4. Maps each source document to the app’s transaction schema (transaction_type, purchase_date, fees, debit, credit, etc.) and bulk-inserts.
 
-### Adding a new API endpoint
+**Usage:** `python migrate_transactions.py <username> [path_to_Transactions.bson]`
 
-1. Create or update a route in `backend/routes/api.py`:
-```python
-@router.get("/your-endpoint")
-async def your_handler(request: Request):
-    user = await get_current_user(request)
-    if not user:
-        return JSONResponse({"error": "Not authenticated"}, status_code=401)
-    return {"data": "your data"}
-```
+---
 
-### Adding a new frontend page
+## Adding new features
 
-1. Add a template in `templates/`.
-2. Add a route in `backend/routes/page_routes.py`:
-```python
-@router.get("/your-page", response_class=HTMLResponse)
-async def your_page(request: Request):
-    return templates.TemplateResponse("your-template.html", {"request": request})
-```
+- **New API endpoint:** Add or extend routes in `backend/routes/api.py`. Use `get_current_user(request)` for protected endpoints.
+- **New page:** Add a template under `templates/`, then a route in `backend/routes/page_routes.py` with `templates.TemplateResponse(...)`.
+- **New company data field:** Add the key in `backend/services/stock_service.py` inside the `ticker.info` block and in the returned dict; then show it in `templates/asset_company.html`.
+
+---
 
 ## Development
 
-The application runs with auto-reload enabled (`reload=True` in `main.py`), so changes will refresh when you save files.
+The app runs with Uvicorn `reload=True`; code and template changes trigger an automatic restart.
