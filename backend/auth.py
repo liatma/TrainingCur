@@ -3,7 +3,8 @@ Authentication helpers: password hashing and session management.
 """
 import bcrypt
 from fastapi import Request, HTTPException
-from starlette.status import HTTP_303_SEE_OTHER
+from bson import ObjectId
+
 from backend.database import get_database
 
 
@@ -23,18 +24,19 @@ def verify_password(password: str, password_hash: str) -> bool:
 async def get_current_user(request: Request) -> dict | None:
     """
     Read the current user from session cookie.
-    Returns user dict or None if not logged in.
+    Returns user dict (with _id as string) or None if not logged in.
     """
     user_id = request.session.get("user_id")
     if not user_id:
         return None
-
-    from bson import ObjectId
-
-    db = get_database()
-    user = await db.users.find_one({"_id": ObjectId(user_id)})
-    if user:
-        user["_id"] = str(user["_id"])
+    try:
+        db = get_database()
+        user = await db.users.find_one({"_id": ObjectId(user_id)})
+    except Exception:
+        return None
+    if not user:
+        return None
+    user["_id"] = str(user["_id"])
     return user
 
 
